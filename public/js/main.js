@@ -18,6 +18,7 @@ import { renderStars, updateWanted, starsOf, clearHeat } from './game/wanted.js'
 import { trackAds, redrawAds } from './game/ads.js';
 import { drawMini, updateHud, sizeMini, showPrompt } from './game/hud.js';
 import { track } from './game/analytics.js';
+import { initFeedback } from './game/feedback.js';
 
 const canvas = $('#game');
 const loadMsg = m => { $('#loadMsg').textContent = m; };
@@ -157,7 +158,7 @@ const K = G.keys;
 function setWeapon(i) { G.P.weapon = (i + WEAPONS.length) % WEAPONS.length; track('weapon', { weapon: WEAPONS[G.P.weapon].name }); }
 const act = () => { const before = G.P.mode; tryEnterExit(showPrompt, alertPeds); if (G.P.mode !== before) sfx('door'); };
 addEventListener('keydown', e => {
-  if (loading) return;
+  if (loading || G.uiOpen || (e.target && e.target.closest && e.target.closest('input,textarea'))) return;
   const k = KEYMAP[e.code];
   if (k) { if (k === 'fire' && !K.fire) G.fireQueued = true; K[k] = 1; e.preventDefault(); if (G.mode === 'photo' && k !== 'sprint') exitPhoto(); return; }
   if (e.repeat) return;
@@ -173,7 +174,7 @@ addEventListener('keyup', e => { const k = KEYMAP[e.code]; if (k) { K[k] = 0; e.
 addEventListener('blur', () => { for (const k in K) K[k] = 0; });
 const canLock = !!canvas.requestPointerLock;
 canvas.addEventListener('pointerdown', e => {
-  if (G.mode !== 'play' || e.pointerType !== 'mouse' || loading) return;
+  if (G.mode !== 'play' || e.pointerType !== 'mouse' || loading || G.uiOpen) return;
   ensureAudio(); canvas.focus({ preventScroll: true });
   { const r = canvas.getBoundingClientRect(); look.cx = e.clientX - r.left; look.cy = e.clientY - r.top; look.overCanvas = true; }
   if (canLock && !look.lockFailed && !look.locked) { // first click captures the mouse; it does not shoot
@@ -226,6 +227,7 @@ $('#btnWx').addEventListener('click', e => {
 });
 $('#btnSnd').addEventListener('click', e => { e.currentTarget.blur(); const m = toggleMute(); track('sound', { muted: m }); });
 refreshButton();
+initFeedback();
 $('#btnInfo').addEventListener('click', e => { const b = e.currentTarget; b.blur(); const p = $('#info'); p.hidden = !p.hidden; b.setAttribute('aria-pressed', String(!p.hidden)); });
 addEventListener('resize', () => { resize(); sizeMini(); });
 

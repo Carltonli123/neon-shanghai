@@ -36,6 +36,12 @@ td.n,th.n{text-align:right}
 .bar.pink{background:var(--pink)}
 .empty{color:var(--muted);padding:8px 0}
 code{font-size:12px;color:var(--blue)}
+.fb-list{display:grid;gap:10px}
+.fb-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.fb-item .meta{display:flex;flex-wrap:wrap;gap:4px 12px;color:var(--muted);font-size:12px;margin-bottom:4px}
+.fb-item .stars{color:var(--gold);letter-spacing:2px}
+.fb-item p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.fb-item .contact{margin-top:6px;font-size:12px;color:var(--blue);overflow-wrap:anywhere}
 .err{background:#2a1220;border:1px solid #6a2a44;color:#ffd0e0;border-radius:12px;padding:14px 16px;margin-bottom:22px}
 </style>
 </head>
@@ -51,6 +57,7 @@ code{font-size:12px;color:var(--blue)}
   <div class="tile"><b id="avg">–</b><span>Avg play time</span><small>per player</small></div>
   <div class="tile gold"><b id="impr">–</b><span>Ad impressions</span><small id="perPlayer">&nbsp;</small></div>
 </div>
+<section><h2>Player feedback <span id="fbSummary" style="text-transform:none;letter-spacing:0;color:var(--fg)"></span></h2><div id="fbList" class="fb-list"></div></section>
 <section><h2>Last 14 days</h2><div class="scroll"><table id="daily"></table></div></section>
 <div class="grid">
   <section><h2>Impressions by brand</h2><div class="scroll"><table id="brands"></table></div></section>
@@ -93,7 +100,16 @@ async function load() {
     $('#upd').textContent = 'Updated ' + new Date().toLocaleTimeString() + ' · ' + (s.storage || '') + ' · refreshes every 15 s';
   } catch (e) { $('#upd').textContent = 'Cannot reach the server.'; }
 }
-load(); setInterval(load, 15000);
+async function loadFeedback() {
+  try {
+    const r = await fetch('/api/feedback' + (key ? '?key=' + encodeURIComponent(key) : ''), { cache: 'no-store' });
+    const f = await r.json(); if (!r.ok) { $('#fbList').innerHTML = '<div class="empty">' + esc(f.error || 'Could not load feedback.') + '</div>'; return; }
+    const n = Object.values(f.ratings).reduce((a, b) => a + b, 0), sum = Object.entries(f.ratings).reduce((a, [k, v]) => a + k * v, 0);
+    $('#fbSummary').textContent = '· ' + f.total + ' message' + (f.total === 1 ? '' : 's') + (n ? ' · average ' + (sum / n).toFixed(1) + ' ★ from ' + n + ' rating' + (n === 1 ? '' : 's') : '');
+    $('#fbList').innerHTML = f.items.length ? f.items.map(i => `<div class="fb-item"><div class="meta"><span class="stars">${i.rating ? '★'.repeat(i.rating) + '<span style="opacity:.25">' + '★'.repeat(5 - i.rating) + '</span>' : 'no rating'}</span><span>${new Date(i.t).toLocaleString()}</span><span>${esc(i.loc || '')} · ${esc(i.tier || '')} · ${i.mins} min played · ${i.touch ? 'touch' : 'desktop'}</span><span><code>${esc(String(i.sid).slice(0, 8))}</code></span></div>${i.text ? '<p>' + esc(i.text) + '</p>' : ''}${i.contact ? '<div class="contact">Reply to: ' + esc(i.contact) + '</div>' : ''}</div>`).join('') : '<div class="empty">No feedback yet. Players can send it with the FEEDBACK button in the game.</div>';
+  } catch (_) { $('#fbList').innerHTML = '<div class="empty">Could not load feedback.</div>'; }
+}
+load(); loadFeedback(); setInterval(() => { load(); loadFeedback(); }, 15000);
 </script>
 </body>
 </html>

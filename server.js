@@ -23,7 +23,9 @@ const MIME = {
 };
 
 /* ---------- in-memory aggregates ---------- */
-const { refDomain, day } = require('./api/_lib');
+const { refDomain, day, cleanFeedback, clientHash } = require('./api/_lib');
+const FB_LOG = path.join(DATA, 'feedback.ndjson'), feedback = [], fbRate = new Map();
+try { for (const line of fs.readFileSync(FB_LOG, 'utf8').split('\n')) { if (line) try { feedback.unshift(JSON.parse(line)); } catch (_) { /* skip bad line */ } } } catch (_) { /* no feedback yet */ }
 const agg = { events: 0, sessions: new Map(), players: new Set(), playSecs: 0, daily: new Map(), devices: {}, tiers: {}, byType: {}, impBySlot: {}, impByBrand: {}, dwell: {}, refs: {}, recent: [] };
 const dayAgg = d => { if (!agg.daily.has(d)) agg.daily.set(d, { v: new Set(), p: new Set(), i: 0 }); return agg.daily.get(d); };
 const inc = (o, k) => { k = k == null ? '(none)' : String(k); o[k] = (o[k] || 0) + 1; };
@@ -153,6 +155,23 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, JSON.stringify(stats()), MIME['.json']);
     }
     if (pathname === '/api/health') return send(res, 200, JSON.stringify({ ok: true }), MIME['.json']);
+    if (pathname === '/api/feedback') {
+      if (req.method === 'POST') {
+        let raw = null; try { raw = JSON.parse(await readBody(req, 16 * 1024)); } catch (_) { /* invalid JSON */ }
+        if (raw && raw.website) return send(res, 200, JSON.stringify({ ok: true }), MIME['.json']);
+        const fb = cleanFeedback(raw, req.headers['user-agent']);
+        if (!fb) return send(res, 400, JSON.stringify({ error: 'Add a rating or a comment first.' }), MIME['.json']);
+        const who = clientHash(req), hour = Math.floor(Date.now() / 3600000), rk = who + ':' + hour;
+        fbRate.set(rk, (fbRate.get(rk) || 0) + 1);
+        if (fbRate.get(rk) > 5) return send(res, 429, JSON.stringify({ error: 'Thanks! You have sent a lot of feedback this hour. Please try again later.' }), MIME['.json']);
+        feedback.unshift(fb); if (feedback.length > 1000) feedback.length = 1000;
+        fs.appendFile(FB_LOG, JSON.stringify(fb) + '\n', err => { if (err) console.error('feedback write failed', err); });
+        return send(res, 200, JSON.stringify({ ok: true }), MIME['.json']);
+      }
+      if (process.env.STATS_KEY && new URL(req.url, 'http://x').searchParams.get('key') !== process.env.STATS_KEY) return send(res, 401, JSON.stringify({ error: 'This dashboard needs ?key= in the address.' }), MIME['.json']);
+      const ratings = {}; for (const f of feedback) if (f.rating) ratings[f.rating] = (ratings[f.rating] || 0) + 1;
+      return send(res, 200, JSON.stringify({ total: feedback.length, ratings, items: feedback.slice(0, 200) }), MIME['.json']);
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, 'Method not allowed');
     serveStatic(req, res, pathname);
   } catch (err) {

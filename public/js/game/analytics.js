@@ -3,6 +3,7 @@ import { G } from '../state.js';
 
 const SID = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
 const queue = [];
+G.sid = SID;
 export function track(type, data) { queue.push(Object.assign({ type, sid: SID, t: Date.now(), loc: G.district, tier: G.q ? G.q.key : '' }, data || {})); }
 function flush(beacon) {
   if (!queue.length || location.protocol === 'file:') return;

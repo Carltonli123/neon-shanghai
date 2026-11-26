@@ -67,7 +67,7 @@ function dbConfig() {
     const m = name.match(/^(.*?)(KV_REST_API|UPSTASH_REDIS_REST|REDIS_REST_API|REDIS_REST)_URL$/);
     if (!m) continue;
     const token = env[m[1] + m[2] + '_TOKEN'];
-    if (token && /^https:\/\//.test(env[name])) return { url: env[name].replace(/\/$/, ''), token };
+    if (token && /^(https:\/\/|http:\/\/(127\.0\.0\.1|localhost)[:/])/.test(env[name])) return { url: env[name].replace(/\/$/, ''), token };
   }
   return null;
 }
@@ -119,4 +119,24 @@ function keyOk(req) {
   const url = new URL(req.url, 'http://x'); return url.searchParams.get('key') === need;
 }
 
-module.exports = { sanitize, commandsFor, redis, readStats, parseBody, keyOk, dbConfig, refDomain, day };
+// Player feedback: validates the form fields; returns null for empty or bot submissions.
+function cleanFeedback(b, ua) {
+  if (!b || typeof b !== 'object') return null;
+  if (b.website) return null; // hidden decoy field: only bots fill it in
+  const text = String(b.text || '').replace(/\s+$/, '').slice(0, 1000);
+  const rating = Math.max(0, Math.min(5, parseInt(b.rating, 10) || 0));
+  if (!text.trim() && !rating) return null;
+  const str = (v, n) => String(v == null ? '' : v).slice(0, n);
+  return {
+    t: Date.now(), rating, text, contact: str(b.contact, 120),
+    sid: str(b.sid, 64), loc: str(b.loc, 8), tier: str(b.tier, 8),
+    mins: Math.max(0, Math.min(600, Math.round(Number(b.mins) || 0))), touch: !!b.touch,
+    ua: str(ua, 160)
+  };
+}
+function clientHash(req) {
+  const ip = String(req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || '').split(',')[0].trim();
+  return require('crypto').createHash('sha256').update('neon-huangpu:' + ip).digest('hex').slice(0, 16);
+}
+
+module.exports = { sanitize, commandsFor, redis, readStats, parseBody, keyOk, dbConfig, refDomain, day, cleanFeedback, clientHash };
