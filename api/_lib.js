@@ -59,10 +59,17 @@ function commandsFor(events) {
   return cmds;
 }
 
+// Finds the Upstash REST address and token whatever prefix Vercel gave them
+// (e.g. KV_REST_API_URL, UPSTASH_REDIS_REST_URL, STORAGE_KV_REST_API_URL).
 function dbConfig() {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  return url && token ? { url: url.replace(/\/$/, ''), token } : null;
+  const env = process.env;
+  for (const name of Object.keys(env)) {
+    const m = name.match(/^(.*?)(KV_REST_API|UPSTASH_REDIS_REST|REDIS_REST_API|REDIS_REST)_URL$/);
+    if (!m) continue;
+    const token = env[m[1] + m[2] + '_TOKEN'];
+    if (token && /^https:\/\//.test(env[name])) return { url: env[name].replace(/\/$/, ''), token };
+  }
+  return null;
 }
 async function redis(cmds) {
   const db = dbConfig(); if (!db) return null;
