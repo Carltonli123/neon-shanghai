@@ -1,0 +1,13 @@
+{
+  "name": "neon-huangpu",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Open-world driving prototype set in Shanghai, with in-game ad slots and viewability logging",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

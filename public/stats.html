@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Neon Huangpu Stats</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: summary tiles, a 14-day table, then breakdown tables in a responsive grid, then the event feed */
+:root{--bg:#07080e;--panel:#0f121c;--line:#232a3d;--fg:#eef0f8;--muted:#8f96b2;--gold:#ffc35a;--pink:#ff4f97;--blue:#3fd6ff;
+  --display:"Chakra Petch","Arial Narrow",sans-serif;--body:"IBM Plex Sans",system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);padding:28px max(16px,4vw) 48px}
+h1{font:700 24px var(--display);letter-spacing:.12em;margin:0}
+h1 em{font-style:normal;color:var(--pink)}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between;margin-bottom:22px}
+header p{margin:0;color:var(--muted);font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:22px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.tile b{display:block;font:700 30px var(--display);font-variant-numeric:tabular-nums}
+.tile span{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.tile small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.tile.gold b{color:var(--gold)}
+.tile.pink b{color:var(--pink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:22px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0;margin-bottom:14px}
+.grid section{margin-bottom:0}
+h2{font:600 13px var(--display);letter-spacing:.12em;text-transform:uppercase;margin:0 0 10px;color:var(--muted)}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:500;color:var(--muted);font-size:12px}
+td.n,th.n{text-align:right}
+.bar{height:6px;border-radius:3px;background:var(--gold);min-width:2px}
+.bar.pink{background:var(--pink)}
+.empty{color:var(--muted);padding:8px 0}
+code{font-size:12px;color:var(--blue)}
+.err{background:#2a1220;border:1px solid #6a2a44;color:#ffd0e0;border-radius:12px;padding:14px 16px;margin-bottom:22px}
+</style>
+</head>
+<body>
+<header>
+  <h1>NEON <em>HUANGPU</em> · STATS</h1>
+  <p id="upd">Loading…</p>
+</header>
+<div class="err" id="err" hidden></div>
+<div class="tiles">
+  <div class="tile"><b id="visitors">–</b><span>Visitors</span><small>opened the game</small></div>
+  <div class="tile pink"><b id="players">–</b><span>Players</span><small>stayed 30 s or more</small></div>
+  <div class="tile"><b id="avg">–</b><span>Avg play time</span><small>per player</small></div>
+  <div class="tile gold"><b id="impr">–</b><span>Ad impressions</span><small id="perPlayer">&nbsp;</small></div>
+</div>
+<section><h2>Last 14 days</h2><div class="scroll"><table id="daily"></table></div></section>
+<div class="grid">
+  <section><h2>Impressions by brand</h2><div class="scroll"><table id="brands"></table></div></section>
+  <section><h2>Impressions by slot</h2><div class="scroll"><table id="slots"></table></div></section>
+  <section><h2>Where players came from</h2><div class="scroll"><table id="refs"></table></div></section>
+  <section><h2>Devices and graphics</h2><div class="scroll"><table id="devices"></table></div></section>
+  <section><h2>Events by type</h2><div class="scroll"><table id="types"></table></div></section>
+</div>
+<section><h2>Latest events</h2><div class="scroll"><table id="recent"></table></div></section>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtSecs = s => s < 60 ? Math.round(s) + 's' : Math.floor(s / 60) + 'm ' + Math.round(s % 60) + 's';
+const key = new URLSearchParams(location.search).get('key');
+function rows(el, head, data, emptyMsg, numCols) {
+  if (!data.length) { el.innerHTML = '<tr><td class="empty">' + emptyMsg + '</td></tr>'; return; }
+  el.innerHTML = '<tr>' + head.map((h, i) => '<th' + ((numCols || []).includes(i) ? ' class="n"' : '') + '>' + h + '</th>').join('') + '</tr>' + data.join('');
+}
+async function load() {
+  try {
+    const r = await fetch('/api/stats' + (key ? '?key=' + encodeURIComponent(key) : ''), { cache: 'no-store' });
+    const s = await r.json();
+    if (!r.ok) { $('#err').hidden = false; $('#err').textContent = s.error || ('Error ' + r.status); $('#upd').textContent = 'Not loaded'; return; }
+    $('#err').hidden = true;
+    $('#visitors').textContent = s.sessions; $('#players').textContent = s.players ?? '–';
+    $('#avg').textContent = fmtSecs(s.avgSessionSecs || 0); $('#impr').textContent = s.impressions; $('#events') && ($('#events').textContent = s.events);
+    $('#perPlayer').textContent = s.players ? (s.impressions / s.players).toFixed(1) + ' per player' : ' ';
+    const daily = (s.daily || []).slice().reverse(), maxP = Math.max(1, ...daily.map(d => d.visitors));
+    rows($('#daily'), ['Day', 'Visitors', 'Players', 'Impressions', ''], daily.map(d => `<tr><td>${esc(d.day)}</td><td class="n">${d.visitors}</td><td class="n">${d.players}</td><td class="n">${d.impressions}</td><td style="width:30%"><div class="bar pink" style="width:${d.visitors / maxP * 100}%"></div></td></tr>`), 'No visits yet.', [1, 2, 3]);
+    const maxB = Math.max(1, ...s.impByBrand.map(b => b.impressions));
+    rows($('#brands'), ['Brand', 'Impr.', 'Avg view', ''], s.impByBrand.map(b => `<tr><td>${esc(b.brand)}</td><td class="n">${b.impressions}</td><td class="n">${b.avgDwellSecs == null ? '–' : b.avgDwellSecs.toFixed(1) + 's'}</td><td style="width:30%"><div class="bar" style="width:${b.impressions / maxB * 100}%"></div></td></tr>`), 'No impressions yet. Play the game and look at a billboard for 1 second.', [1, 2]);
+    rows($('#slots'), ['Slot', 'Impr.'], s.impBySlot.map(([k, v]) => `<tr><td><code>${esc(k)}</code></td><td class="n">${v}</td></tr>`), 'No impressions yet.', [1]);
+    rows($('#refs'), ['Source', 'Visits'], (s.referrers || []).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${v}</td></tr>`), 'No visits yet.', [1]);
+    rows($('#devices'), ['Device or quality', 'Visits'], [...(s.devices || []), ...(s.tiers || []).map(([k, v]) => ['quality: ' + k, v])].map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${v}</td></tr>`), 'No visits yet.', [1]);
+    rows($('#types'), ['Event', 'Count'], s.byType.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${v}</td></tr>`), 'No events yet.', [1]);
+    rows($('#recent'), ['Time', 'Session', 'Type', 'Details'], s.recent.map(e => {
+      const { type, sid, srv, t, loc, ua, ...rest } = e;
+      return `<tr><td>${new Date(srv).toLocaleTimeString()}</td><td><code>${esc(String(sid).slice(0, 8))}</code></td><td>${esc(type)}</td><td>${esc(Object.entries(Object.assign({ loc }, rest)).map(([k, v]) => k + '=' + v).join('  '))}</td></tr>`;
+    }), 'No events yet.');
+    $('#upd').textContent = 'Updated ' + new Date().toLocaleTimeString() + ' · ' + (s.storage || '') + ' · refreshes every 15 s';
+  } catch (e) { $('#upd').textContent = 'Cannot reach the server.'; }
+}
+load(); setInterval(load, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neon Huangpu</title>
+<meta name="description" content="Drive, walk and explore rainy, neon-lit Shanghai in your browser. Lujiazui and People's Square rebuilt from real map data. Free, no download.">
+<meta name="theme-color" content="#06070d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2306070d'/%3E%3Ccircle cx='32' cy='22' r='9' fill='%23ff4f97'/%3E%3Ccircle cx='32' cy='44' r='6' fill='%23ff4f97'/%3E%3Crect x='30.5' y='4' width='3' height='56' fill='%233fd6ff'/%3E%3C/svg%3E">
+<!-- Link previews (WhatsApp, X, Facebook, Discord, Slack...). Replace the domain if yours differs. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Neon Huangpu">
+<meta property="og:title" content="Neon Huangpu: a neon Shanghai you can drive through">
+<meta property="og:description" content="Free browser game. Drive, walk and explore rainy Lujiazui and People's Square, rebuilt from real map data.">
+<meta property="og:image" content="https://neon-shanghai.vercel.app/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://neon-shanghai.vercel.app/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Neon Huangpu: a neon Shanghai you can drive through">
+<meta name="twitter:description" content="Free browser game. Drive, walk and explore rainy Lujiazui and People's Square, rebuilt from real map data.">
+<meta name="twitter:image" content="https://neon-shanghai.vercel.app/og.jpg">
+<!-- Vercel Web Analytics: only loads on the deployed site (enable it in the Vercel dashboard) -->
+<script>
+if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  const s = document.createElement('script'); s.defer = true; s.src = '/_vercel/insights/script.js'; document.head.appendChild(s);
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@500;700&display=swap">
+<style>
+/* Layout: full-bleed 3D night city, HUD pinned to the four corners like a car dashboard */
+:root{
+  --bg:#06070d;
+  --panel:rgba(9,11,20,.74);
+  --line:rgba(150,165,255,.20);
+  --fg:#eef0f8;
+  --muted:#9097b3;
+  --pearl:#ff4f97;   /* Oriental Pearl magenta */
+  --river:#3fd6ff;   /* Huangpu night blue */
+  --bund:#ffc35a;    /* Bund floodlight gold */
+  --display:"Chakra Petch","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --cn:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px var(--body);overflow:hidden;-webkit-user-select:none;user-select:none}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none;cursor:crosshair}
+.cn{font-family:var(--cn)}
+.hud{position:fixed;z-index:3;pointer-events:none}
+.hud button,.hud canvas,.hud .panel{pointer-events:auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+button{font:inherit;color:inherit}
+button:focus-visible{outline:2px solid var(--river);outline-offset:2px}
+
+.tl{top:calc(env(safe-area-inset-top,0px) + 14px);left:max(16px,calc(env(safe-area-inset-left,0px) + 14px))}
+.brand{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:.16em;line-height:1;text-shadow:0 0 18px rgba(255,79,151,.6)}
+.brand em{font-style:normal;color:var(--pearl)}
+.tag{display:inline-block;margin-left:8px;vertical-align:4px;font:600 9px var(--display);letter-spacing:.22em;color:var(--bund);border:1px solid currentColor;border-radius:3px;padding:2px 5px}
+.loc{margin-top:8px;display:flex;gap:10px;align-items:baseline;font-size:13px;color:var(--muted)}
+.loc b{font:600 15px var(--display);letter-spacing:.06em;color:var(--fg)}
+.who{margin-top:10px;padding:8px 12px;display:grid;gap:4px;width:max-content;pointer-events:none}
+.who .name{font:700 14px var(--display);letter-spacing:.08em}
+.who .name span{font:700 14px var(--cn);margin-right:6px;color:var(--pearl)}
+.who .wpn{font-size:12px;color:var(--muted)}
+.who .wpn b{color:var(--fg);font:600 13px var(--display);letter-spacing:.06em}
+.stars{font-size:18px;letter-spacing:3px;color:rgba(255,255,255,.18);line-height:1}
+.stars i{font-style:normal}
+.stars i.on{color:var(--bund);text-shadow:0 0 10px rgba(255,195,90,.8)}
+.stars.flash{animation:flash .5s 3}
+@keyframes flash{50%{opacity:.25}}
+
+.tr{top:calc(env(safe-area-inset-top,0px) + 14px);right:max(16px,calc(env(safe-area-inset-right,0px) + 14px));display:flex;gap:8px;align-items:stretch}
+.seg{display:flex;padding:3px;gap:2px}
+.seg button{background:transparent;border:0;border-radius:9px;color:var(--muted);cursor:pointer;padding:6px 12px;display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;font:600 13px var(--display);letter-spacing:.05em}
+.seg button small{font:500 11px var(--cn);letter-spacing:0;opacity:.85}
+.seg button.on{background:rgba(255,79,151,.16);color:var(--fg);box-shadow:inset 0 0 0 1px rgba(255,79,151,.6)}
+.btn{cursor:pointer;padding:0 14px;font:600 13px var(--display);letter-spacing:.06em;color:var(--fg)}
+.btn.icon{width:40px;padding:0;font-size:16px}
+.btn[aria-pressed="true"]{color:var(--river);box-shadow:inset 0 0 0 1px rgba(63,214,255,.6)}
+
+.toast{top:calc(env(safe-area-inset-top,0px) + 74px);left:50%;transform:translateX(-50%);padding:9px 16px;text-align:center;opacity:0;transition:opacity .35s;white-space:nowrap}
+.toast.show{opacity:1}
+.toast b{display:block;font:700 18px var(--cn);letter-spacing:.08em}
+.toast span{font-size:12px;color:var(--muted)}
+
+.prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 70px);left:50%;transform:translateX(-50%);padding:8px 14px;font:600 14px var(--display);letter-spacing:.05em;white-space:nowrap;opacity:0;transition:opacity .2s}
+.prompt.show{opacity:1}
+.prompt kbd{display:inline-block;min-width:22px;text-align:center;font:700 12px var(--display);color:#000;background:var(--bund);border-radius:4px;padding:2px 6px;margin-right:8px}
+
+.banner{position:fixed;inset:0;z-index:5;display:grid;place-items:center;pointer-events:none;background:radial-gradient(circle,rgba(10,20,60,.25),rgba(0,0,0,.65))}
+.banner div{text-align:center}
+.banner b{display:block;font:700 clamp(48px,12vw,120px) var(--display);letter-spacing:.12em;color:var(--river);text-shadow:0 0 30px rgba(63,214,255,.7)}
+.banner span{font:700 24px var(--cn);color:var(--fg);letter-spacing:.3em}
+
+.bl{bottom:calc(env(safe-area-inset-bottom,0px) + 16px);left:max(16px,calc(env(safe-area-inset-left,0px) + 14px))}
+#mini{width:176px;height:176px;display:block;border-radius:14px;border:1px solid var(--line);background:#0a0c14}
+
+.br{bottom:calc(env(safe-area-inset-bottom,0px) + 16px);right:max(16px,calc(env(safe-area-inset-right,0px) + 14px));width:228px;padding:12px 14px;display:grid;gap:10px}
+.speed{display:flex;align-items:baseline;gap:6px;font-family:var(--display)}
+.speed span{font-size:44px;font-weight:700;line-height:.9;font-variant-numeric:tabular-nums;min-width:3ch;text-align:right}
+.speed small{font-size:12px;letter-spacing:.14em;color:var(--muted)}
+.speed.foot span{font-size:22px;min-width:0;letter-spacing:.1em}
+.ads{border-top:1px solid var(--line);padding-top:9px;display:grid;gap:3px;font-size:12px;color:var(--muted)}
+.ads .row{display:flex;justify-content:space-between;align-items:baseline}
+.ads .lab{text-transform:uppercase;letter-spacing:.12em;font-size:10px}
+#impr{font:700 22px var(--display);color:var(--bund);font-variant-numeric:tabular-nums}
+#impr.bump{animation:bump .5s}
+@keyframes bump{0%{transform:scale(1.35);color:#fff}100%{transform:scale(1)}}
+#inview,#lastImp{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#inview b{color:var(--fg);font-weight:600}
+
+.bc{bottom:calc(env(safe-area-inset-bottom,0px) + 18px);left:50%;transform:translateX(-50%);font-size:12px;color:var(--muted);padding:7px 14px;white-space:nowrap}
+.bc kbd{font:600 11px var(--display);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;margin:0 1px}
+
+.info{top:calc(env(safe-area-inset-top,0px) + 70px);right:max(16px,calc(env(safe-area-inset-right,0px) + 14px));width:min(330px,calc(100vw - 32px));padding:14px 16px;font-size:13px;line-height:1.5;color:var(--muted)}
+.info h2{margin:0 0 6px;font:700 14px var(--display);letter-spacing:.08em;color:var(--fg)}
+.info p{margin:0 0 8px}
+.info a{color:var(--river)}
+
+.touch{position:fixed;z-index:3;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:none;justify-content:space-between;align-items:flex-end;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
+.is-touch .touch{display:flex}
+.is-touch.photo .touch{display:none}
+.touch .pad{display:grid;grid-template-columns:repeat(2,64px);gap:10px}
+.touch button{pointer-events:auto;width:64px;height:64px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font:700 12px var(--display);letter-spacing:.06em;color:var(--fg);touch-action:none}
+.touch button.held{background:rgba(255,79,151,.3);border-color:var(--pearl)}
+.touch button.fire{border-color:rgba(255,79,151,.6)}
+.is-touch .bc{display:none}
+.photo .bl,.photo .br .speed{opacity:.35}
+.h-aim{display:none}
+.mouse-aim .h-aim{display:inline}
+.mouse-aim .h-free{display:none}
+.xhair{position:fixed;left:50%;top:50%;width:0;height:0;z-index:4;pointer-events:none;--gap:9px}
+.xhair i{position:absolute;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.55);transition:left .08s,top .08s}
+.xhair i:nth-child(1){width:2px;height:9px;left:-1px;top:calc(-1 * var(--gap) - 9px)}
+.xhair i:nth-child(2){width:2px;height:9px;left:-1px;top:var(--gap)}
+.xhair i:nth-child(3){width:9px;height:2px;top:-1px;left:calc(-1 * var(--gap) - 9px)}
+.xhair i:nth-child(4){width:9px;height:2px;top:-1px;left:var(--gap)}
+.xhair::after{content:"";position:absolute;width:3px;height:3px;left:-1.5px;top:-1.5px;border-radius:50%;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.55)}
+.xhair.hit i,.xhair.hit::after{background:var(--pearl)}
+.xhair.melee i{display:none}
+.cursor-aim #game{cursor:none}
+@media (prefers-reduced-motion:reduce){.xhair i{transition:none}}
+
+#nogl{position:fixed;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted)}
+.attr{margin-top:6px;font-size:10px;color:var(--muted);max-width:176px;line-height:1.3;pointer-events:auto}
+.attr a{color:var(--muted)}
+.loading{position:fixed;inset:0;z-index:6;display:grid;place-items:center;background:var(--bg);transition:opacity .5s}
+.loading.done{opacity:0;pointer-events:none}
+.loading div{text-align:center;display:grid;gap:10px}
+.loading b{font:700 28px var(--display);letter-spacing:.2em;color:var(--fg);text-shadow:0 0 24px rgba(255,79,151,.6)}
+.loading span{color:var(--muted);font-size:13px;letter-spacing:.06em}
+.fps{top:calc(env(safe-area-inset-top,0px) + 70px);left:50%;transform:translateX(-50%);font:600 11px var(--display);color:var(--muted);letter-spacing:.08em}
+
+@media (max-width:760px){
+  .brand{font-size:18px}
+  .tr{top:calc(env(safe-area-inset-top,0px) + 50px);right:max(16px,calc(env(safe-area-inset-right,0px) + 14px));left:max(16px,calc(env(safe-area-inset-left,0px) + 14px));flex-wrap:wrap;gap:6px}
+  .seg{width:100%}
+  .seg button{flex:1;padding:5px 9px;font-size:12px}
+  .tr .btn{flex:1;height:36px;padding:0 8px;font-size:12px}
+  .tr .btn.icon{flex:0 0 40px}
+  .loc{display:none}
+  .who{position:fixed;top:calc(env(safe-area-inset-top,0px) + 152px);left:max(16px,calc(env(safe-area-inset-left,0px) + 14px));margin:0}
+  .br{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 152px);width:150px;padding:9px 11px;gap:6px}
+  .speed span{font-size:30px}
+  #lastImp{display:none}
+  .bl{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 258px)}
+  #mini{width:96px;height:96px}
+  .attr{max-width:96px;font-size:9px}
+  .toast{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 168px)}
+  .prompt{bottom:calc(env(safe-area-inset-bottom,0px) + 230px)}
+  .info{top:calc(env(safe-area-inset-top,0px) + 152px)}
+  .fps{top:calc(env(safe-area-inset-top,0px) + 136px)}
+  .bc{display:none}
+}
+@media (prefers-reduced-motion:reduce){#impr.bump,.stars.flash{animation:none}.toast,.prompt{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="game" tabindex="0" aria-label="3D night view of Shanghai you can explore on foot or by car"></canvas>
+
+<div class="hud tl">
+  <div class="brand">NEON <em>HUANGPU</em><span class="tag">PROTOTYPE</span></div>
+  <div class="loc"><b id="locEn">Lujiazui</b><span id="locCn" class="cn">陆家嘴 · Pudong</span></div>
+  <div class="who panel">
+    <div class="name"><span>陈伟</span>CHEN WEI</div>
+    <div class="wpn">Weapon <b id="weapon">Fists</b> · <span id="mode">On foot</span></div>
+    <div class="stars" id="stars" aria-label="Wanted level 0 of 5"><i>★</i><i>★</i><i>★</i><i>★</i><i>★</i></div>
+  </div>
+</div>
+
+<div class="hud tr">
+  <div class="seg panel" role="group" aria-label="Choose district">
+    <button id="btnLjz" class="on" aria-pressed="true">Lujiazui<small>陆家嘴</small></button>
+    <button id="btnPsq" aria-pressed="false">People's Square<small>人民广场</small></button>
+  </div>
+  <button id="btnMode" class="btn panel" aria-pressed="false">Photo mode</button>
+  <button id="btnQ" class="btn panel" title="Graphics quality: Auto, Low, Medium, High, Ultra">AUTO</button>
+  <button id="btnWx" class="btn panel" aria-pressed="true" title="Toggle rain">RAIN</button>
+  <button id="btnSnd" class="btn panel" aria-pressed="false" title="Click to start sound">SOUND ▶</button>
+  <button id="btnInfo" class="btn icon panel" aria-pressed="false" aria-label="About this build">?</button>
+</div>
+
+<div class="hud info panel" id="info" hidden>
+  <h2>About this build</h2>
+  <p>Streets, building footprints, heights and the river come from OpenStreetMap. Buildings without a height tag get an estimate from their size. The landmarks are hand-built models placed at their real positions.</p>
+  <p>Graphics: <b>AUTO</b> picks a quality tier for your device and lowers resolution when the frame rate drops. Click it to force Low, Medium, High or Ultra.</p>
+  <p>Billboards are in-game ad slots. One impression counts when a board is on screen, facing you and at least 18 px tall for 1 continuous second, a simplified version of the MRC display viewability rule. Walls in front of a board are not checked yet.</p>
+  <p>When the game runs from the Node server, every impression, view time, carjack and wanted level change is logged. See <a href="/stats" target="_blank" rel="noopener">/stats</a>.</p>
+</div>
+
+<div class="hud toast panel" id="toast" aria-live="polite"><b id="toastCn"></b><span id="toastEn"></span></div>
+<div class="hud prompt panel" id="prompt"></div>
+<div class="banner" id="banner" hidden><div><b id="bannerEn">BUSTED</b><span id="bannerCn">被捕</span></div></div>
+
+<div class="hud bl"><canvas id="mini" aria-label="Minimap"></canvas><div class="attr">Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</div></div>
+
+<div class="hud br panel">
+  <div class="speed" id="speedBox"><span id="spd">0</span><small id="spdLab">KM/H</small></div>
+  <div class="ads">
+    <div class="row"><span class="lab">Ad impressions</span><span id="impr">0</span></div>
+    <div id="inview">In view: —</div>
+    <div id="lastImp">Walk or drive past a billboard</div>
+  </div>
+</div>
+
+<div class="hud bc panel" id="hint"><span class="h-free"><kbd>Click</kbd> the city to aim with your mouse · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>F</kbd> get in / out · <kbd>J</kbd> attack · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> weapons · <kbd>P</kbd> photo</span><span class="h-aim"><kbd>Mouse</kbd> aim · <kbd>Left click</kbd> shoot · <kbd>Right click</kbd> zoom · <kbd>Wheel</kbd> weapon · <kbd>WASD</kbd> move · <kbd>Shift</kbd> sprint · <kbd>F</kbd> car · <kbd>M</kbd> sound · <kbd>Esc</kbd> free mouse</span></div>
+<div class="xhair" id="xhair" hidden><i></i><i></i><i></i><i></i></div>
+
+<div class="touch" id="touch">
+  <div class="pad">
+    <button data-tap="wpn">WPN</button><button data-tap="act">F</button>
+    <button data-k="left" aria-label="Turn left">◀</button><button data-k="right" aria-label="Turn right">▶</button>
+  </div>
+  <div class="pad">
+    <button data-k="fire" class="fire">FIRE</button><span></span>
+    <button data-k="down">BACK</button><button data-k="up">GO</button>
+  </div>
+</div>
+
+<div id="loading" class="loading"><div><b>NEON HUANGPU</b><span id="loadMsg">Loading the city…</span></div></div>
+<div class="hud fps" id="fps" hidden></div>
+<div id="nogl" hidden><p>This game needs WebGL. Try a recent version of Chrome, Safari, Edge or Firefox.</p></div>
+
+<script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
